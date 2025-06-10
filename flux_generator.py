@@ -75,24 +75,24 @@ class FluxImageGenerator:
                 print(f"Error polling for result: {e}")
                 return None
 
-def save_image(image_url, output_filename):
-    try:
-        response = requests.get(image_url)
-        response.raise_for_status()
+    def save_image(self, image_url, output_filename):
+        try:
+            response = requests.get(image_url)
+            response.raise_for_status()
 
-        if os.path.exists(output_filename):
-            name, ext = os.path.splitext(output_filename)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_filename = f"{name}_{timestamp}{ext}"
+            if os.path.exists(output_filename):
+                name, ext = os.path.splitext(output_filename)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_filename = f"{name}_{timestamp}{ext}"
 
-        with open(output_filename, 'wb') as f:
-            f.write(response.content)
-        print(f"Image saved as: {output_filename}")
-        return output_filename
+            with open(output_filename, 'wb') as f:
+                f.write(response.content)
+            print(f"Image saved as: {output_filename}")
+            return output_filename
 
-    except Exception as e:
-        print(f"Error saving image: {e}")
-        return None
+        except Exception as e:
+            print(f"Error saving image: {e}")
+            return None
 
 def main():
     # Get API key from environment variable

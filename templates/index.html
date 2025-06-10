@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        #result {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #result img {
+            max-width: 100%;
+            height: auto;
+        }
+        .error {
+            color: red;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<h1>Image Generator</h1>
+<div class="form-group">
+    <label for="prompt">Prompt:</label>
+    <input type="text" id="prompt" required>
+</div>
+<div class="form-group">
+    <label for="width">Width:</label>
+    <input type="number" id="width" value="1024" min="256" max="1440" step="32">
+</div>
+<div class="form-group">
+    <label for="height">Height:</label>
+    <input type="number" id="height" value="1024" min="256" max="1440" step="32">
+</div>
+<div class="form-group">
+    <label for="model">Model:</label>
+    <select id="model">
+        {% for model in models %}
+        <option value="{{ model }}">{{ model }}</option>
+        {% endfor %}
+    </select>
+</div>
+<button onclick="generateImage()" id="generateBtn">Generate Image</button>
+<div id="status"></div>
+<div id="result"></div>
+
+<script>
+    async function generateImage() {
+        const prompt = document.getElementById('prompt').value;
+        const width = parseInt(document.getElementById('width').value);
+        const height = parseInt(document.getElementById('height').value);
+        const model = document.getElementById('model').value;
+        const generateBtn = document.getElementById('generateBtn');
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+
+        if (!prompt) {
+            status.innerHTML = '<div class="error">Please enter a prompt</div>';
+            return;
+        }
+
+        generateBtn.disabled = true;
+        status.innerHTML = 'Generating image...';
+        result.innerHTML = '';
+
+        try {
+            const response = await fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ prompt, width, height, model }),
+            });
+            const data = await response.json();
+
+            const pollInterval = setInterval(async () => {
+                const statusResponse = await fetch(`/status/${data.generation_id}`);
+                const statusData = await statusResponse.json();
+
+                status.innerHTML = `Status: ${statusData.status}`;
+
+                if (statusData.status === 'completed') {
+                    clearInterval(pollInterval);
+                    result.innerHTML = `
+                            <img src="/generated_images/${statusData.image_path.split('/').pop()}" alt="Generated Image">
+                            <br>
+                            <a href="/download/${data.generation_id}" download>Download Image</a>
+                        `;
+                    generateBtn.disabled = false;
+                } else if (statusData.status === 'failed' || statusData.status === 'Request Moderated') {  // Added condition here
+                    clearInterval(pollInterval);
+                    status.innerHTML = `<div class="error">Generation failed: ${statusData.error || statusData.status}</div>`;
+                    generateBtn.disabled = false;
+                }
+            }, 1000);
+        } catch (error) {
+            status.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            generateBtn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
